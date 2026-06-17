@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CKLA to Schoology HTML Converter</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1 {
+            color: #3b6cb3;
+            margin-top: 0;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+        textarea {
+            width: 100%;
+            height: 250px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+            resize: vertical;
+            background-color: #fafafa;
+        }
+        button {
+            background-color: #3b6cb3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #2a528f;
+        }
+        .output-box {
+            margin-top: 25px;
+            display: none;
+        }
+        .copy-btn {
+            background-color: #28a745;
+            float: right;
+            margin-top: 0;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        .copy-btn:hover {
+            background-color: #218838;
+        }
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>CKLA to Schoology HTML Converter</h1>
+    <p>Paste the raw markdown text from the lesson Google Doc below, then click "Convert to Schoology HTML".</p>
+    
+    <label for="markdownInput">Google Doc Content (Raw Text):</label>
+    <textarea id="markdownInput" placeholder="Paste table text or markdown text here..."></textarea>
+    
+    <button onclick="convertText()">Convert to Schoology HTML</button>
+    
+    <div id="outputContainer" class="output-box">
+        <div class="clearfix" style="margin-bottom: 10px;">
+            <label style="float: left; margin-top: 8px;">Generated Schoology HTML Code:</label>
+            <button class="copy-btn" onclick="copyToClipboard()">Copy HTML Code</button>
+        </div>
+        <textarea id="htmlOutput" readonly></textarea>
+    </div>
+</div>
+
+<script>
+    // Helper function to extract URLs from text
+    function extractUrl(text, fallbackUrl) {
+        if (!text) return fallbackUrl || '';
+        const match = text.match(/https:\/\/[^\s\)]+/);
+        return match ? match[0].replace(/\\/g, '') : (fallbackUrl || '');
+    }
+
+    // Helper to fix Google URLs for embedding
+    function makeEmbeddable(url) {
+        if (!url) return '';
+        let cleanUrl = url.trim().replace(/\\/g, '');
+        if (cleanUrl.includes('docs.google.com/presentation') || cleanUrl.includes('drive.google.com/file')) {
+            cleanUrl = cleanUrl.split('/edit')[0].split('/view')[0] + '/preview';
+        }
+        return cleanUrl;
+    }
+
+    function convertText() {
+        const rawInput = document.getElementById('markdownInput').value;
+        if (!rawInput.trim()) {
+            alert('Please paste some text first!');
+            return;
+        }
+
+        // Standardize line breaks and scrub backslashes
+        let cleanText = rawInput.replace(/\\\[/g, '[').replace(/\\\]/g, ']').replace(/\\\*/g, '*').replace(/\\_/g, '_');
+
+        // Extract overall metadata
+        const unitTitleMatch = cleanText.match(/\[H2\]\s*\*\*(.*?)\*\*/);
+        const lessonTitleMatch = cleanText.match(/\[H1\]\s*\*\*(.*?)\*\*/);
+        const timeMatch = cleanText.match(/\*Time Estimate:\s*(.*?)\*/i);
+
+        const unitTitle = unitTitleMatch ? unitTitleMatch[1] : "My Story, My Voice: Personal Narratives";
+        const lessonTitle = lessonTitleMatch ? lessonTitleMatch[1] : "Lesson Block";
+        const timeEstimate = timeMatch ? timeMatch[1] : "90 minutes";
+
+        // Assemble Header Banners
+        let htmlResult = `<div style="width: 100%; max-width: 680px; margin: 0 auto;" dir="ltr">
+  <!-- Header Banner -->
+  <div style="background-color: #3b6cb3; padding: 14px 5%; text-align: center; border-radius: 6px 6px 0 0;">
+    <p style="margin: 0px; font-size: 20px; color: #ffffff; font-family: Georgia, serif; line-height: 1.3;" dir="ltr">
+      <strong>${unitTitle} — ${lessonTitle}</strong>
+    </p>
+  </div>
+  
+  <!-- Time Estimate Banner -->
+  <div style="background-color: #cccccc; padding: 6px 5%;">
+    <p style="margin: 0; font-size: 13px; color: #333333; font-family: Georgia, serif;"><em>Time Estimate: ${timeEstimate}</em></p>
+  </div>
+  
+  <div style="height: 20px;">&nbsp;</div>`;
+
+        // 1. Parse Learning Goals Block
+        if (cleanText.includes('Learning Goals')) {
+            htmlResult += `\n  <!-- Learning Goals Block -->
+  <div style="border: 1px solid #cccccc; border-radius: 6px; padding: 20px 5%;">
+    <div style="padding-bottom: 10px; text-align: center;">
+      <span style="background-color: #cccccc; color: #ffffff; border-radius: 50%; width: 44px; height: 44px; line-height: 44px; font-size: 20px; text-align: center;">🎯</span>
+    </div>
+    <div>
+      <p style="text-align: center;"><span style="color: #000000;"><strong><span style="font-family: georgia, palatino; font-size: 14pt;">Learning Goals</span></strong></span></p>
+    </div>`;
+
+            const goalCategories = ['Reading', 'Speaking and Listening', 'Writing'];
+            goalCategories.forEach(cat => {
+                if (cleanText.includes(`[H3] **${cat}**`)) {
+                    htmlResult += `\n    <p dir="ltr"><span style="color: #000000;"><strong><span style="font-family: georgia, palatino; font-size: 14pt;">${cat}</span></strong></span></p>\n    <ul>`;
+                    
+                    // Extract items under this category safely
+                    const sectionBack = cleanText.split(`[H3] **${cat}**`)[1];
+                    const nextSectionIdx = sectionBack.search(/\[H3\]|\|/);
+                    const catBlock = nextSectionIdx !== -1 ? sectionBack.substring(0, nextSectionIdx) : sectionBack;
+                    
+                    const listItems = catBlock.match(/-\s*(.*?)(?=\n|-|$)/g);
+                    if (listItems) {
+                        listItems.forEach(item => {
+                            let itemText = item.replace(/^-\s*/, '').trim();
+                            htmlResult += `\n      <li dir="ltr"><span style="font-family: georgia, palatino; font-size: 14pt;">${itemText}</span></li>`;
+                        });
+                    }
+                    htmlResult += `\n    </ul>`;
+                }
+            });
+            htmlResult += `\n  </div>\n  <div style="height: 20px;">&nbsp;</div>`;
+        }
+
+        // 2. Parse Step-by-Step Sections (01 through 06)
+        const totalSteps = ['01', '02', '03', '04', '05', '06'];
+        const sectionIcons = { '01': '🎥', '02': '📝', '03': '🗣️', '04': '📚', '05': '✏️', '06': '✔️' };
+
+        totalSteps.forEach(stepNum => {
+            const stepRegex = new RegExp(`\\[H2\\]\\s*\\*\\*(${stepNum}\\s+.*?)\\*\\*`);
+            const stepMatch = cleanText.match(stepRegex);
+
+            if (stepMatch) {
+                const stepTitleStr = stepMatch[1]; 
+                const blockSplit = cleanText.split(stepMatch[0])[1];
+                const nextBlockIdx = blockSplit.search(/\[H2\]|Video URL|Slides URL/);
+                let stepContentBlock = nextBlockIdx !== -1 ? blockSplit.substring(0, nextBlockIdx) : blockSplit;
+
+                // Pick an icon dynamically or default to a checklist
+                let icon = sectionIcons[stepNum] || '✏️';
+                if (stepTitleStr.toLowerCase().includes('reading')) icon = '📚';
+                if (stepTitleStr.toLowerCase().includes('listening') || stepTitleStr.toLowerCase().includes('discuss')) icon = '🗣️';
+                if (stepTitleStr.toLowerCase().includes('prep')) icon = '🎥';
+                if (stepTitleStr.toLowerCase().includes('wrap')) icon = '✔️';
+
+                // Look for direct explicitly named URLs or fall back to inline links
+                let rawVideoUrl = extractUrl(cleanText.split(stepNum)[1]?.match(/Video URL:(.*)/)?.[1]);
+                let rawSlideUrl = extractUrl(cleanText.split(stepNum)[1]?.match(/Slides URL:(.*)/)?.[1]);
+                let rawGuideUrl = extractUrl(cleanText.split(stepNum)[1]?.match(/Teacher Guide URL:(.*)/)?.[1]);
+
+                let embedVideo = makeEmbeddable(rawVideoUrl || extractUrl(stepContentBlock.match(/\[\*Embedded Video\*\]\((.*?)\)/)?.[1]));
+                let embedSlides = makeEmbeddable(rawSlideUrl || extractUrl(stepContentBlock.match(/\[\*Embedded Slides\*\]\((.*?)\)/)?.[1]));
+                let teacherGuide = rawGuideUrl || extractUrl(stepContentBlock.match(/\[Teacher Guide\]\((.*?)\)/)?.[1]);
+
+                // Extract isolated text details
+                let sectionTimeMatch = stepContentBlock.match(/\*Time estimate:\s*(.*?)\*/i);
+                let sectionTime = sectionTimeMatch ? sectionTimeMatch[1] : '';
+
+                // Strip URLs out of core instruction rendering blocks
+                let instructText = stepContentBlock
+                    .replace(/\*Time estimate:.*?\*/gi, '')
+                    .replace(/\[\*Embedded Video\*\].*/gi, '')
+                    .replace(/\[\*Embedded Slides\*\].*/gi, '')
+                    .replace(/Video URL:.*/gi, '')
+                    .replace(/Slides URL:.*/gi, '')
+                    .trim();
+
+                htmlResult += `\n  <!-- Section ${stepNum}: ${stepTitleStr} -->
+  <div style="border: 1px solid #cccccc; border-radius: 6px; padding: 20px 5%;">
+    <div style="text-align: center; padding-bottom: 10px;">
+      <span style="background-color: #cccccc; color: #ffffff; border-radius: 50%; width: 44px; height: 44px; line-height: 44px; font-size: 20px; text-align: center;">${icon}</span>
+    </div>
+    <div style="text-align: center; padding-bottom: 12px;">
+      <p><strong><span style="font-size: 14pt; font-family: georgia, palatino;">${stepTitleStr}</span></strong></p>`;
+                
+                if (sectionTime) {
+                    htmlResult += `\n      <p style="margin: 0; font-size: 13px; color: #666666; font-family: Georgia, serif; text-align: center;"><em>Time estimate: ${sectionTime}</em></p>`;
+                }
+
+                // If teacher guide is explicitly linked in instructions, format beautifully
+                if (teacherGuide) {
+                    instructText = instructText.replace(/\[Teacher Guide\].*?(\s+pages\s+\d+-\d+)?/i, `<a href="${teacherGuide}" rel="noreferrer noopener" target="_blank">Teacher Guide$1</a>`);
+                }
+
+                // Append instructions if present
+                let primaryInstructions = instructText.split('**Materials:**')[0].replace(/\[H3\]/g, '').trim();
+                if (primaryInstructions) {
+                    htmlResult += `\n      <p style="text-align: left;"><span style="font-family: georgia, palatino; font-size: 14pt;">${primaryInstructions}</span></p>`;
+                }
+
+                if (embedSlides) {
+                    htmlResult += `\n      <p><iframe src="${embedSlides}" width="560" height="315" allowfullscreen="allowfullscreen"></iframe></p>`;
+                } else if (embedVideo) {
+                    htmlResult += `\n      <p><iframe src="${embedVideo}" width="628" height="353" allowfullscreen="allowfullscreen"></iframe></p>`;
+                }
+
+                htmlResult += `\n    </div>`;
+
+                // Handle Supplementary Materials and Bullet structures
+                if (instructText.includes('**Materials:**') || instructText.includes('**In this section, scholars will…**')) {
+                    htmlResult += `\n    <ul>`;
+                    
+                    // Parse out specific lists
+                    let materialsPart = instructText.match(/\*\*Materials:\*\*\s*([\s\S]*?)(?=\*\*In this section|$)/i);
+                    if (materialsPart) {
+                        let formattedMat = materialsPart[1].replace(/-\s*\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>').replace(/-\s*/g, '').replace(/\n/g, ', ').replace(/,\s*$/, '').trim();
+                        htmlResult += `\n      <li><span style="font-family: georgia, palatino; font-size: 14pt;"><strong>Materials:</strong> ${formattedMat}</span></li>`;
+                    }
+
+                    let scholarWillPart = instructText.match(/\*\*In this section, scholars will…\*\*\s*([\s\S]*?)(?=\*\*|$)/i);
+                    if (scholarWillPart) {
+                        htmlResult += `\n      <li><span style="font-family: georgia, palatino; font-size: 14pt;"><strong>In this section, scholars will…</strong></span>\n        <ul>`;
+                        let targets = scholarWillPart[1].match(/-\s*(.*?)(?=\n|-|$)/g);
+                        if (targets) {
+                            targets.forEach(t => {
+                                htmlResult += `\n          <li><span style="font-family: georgia, palatino; font-size: 14pt;">${t.replace(/^-\s*/, '').trim()}</span></li>`;
+                            });
+                        }
+                        htmlResult += `\n        </ul>\n      </li>`;
+                    }
+                    htmlResult += `\n    </ul>`;
+                }
+
+                // Catch-all for extra complex inline text blocks (like Section 3's word work text)
+                if (instructText.includes('**Conference/')) {
+                    let checklistBlock = instructText.split(/Conference\/\s*Work\s*Sample\s*Checklist:/i)[1];
+                    if (checklistBlock) {
+                        htmlResult += `\n    <p><span style="font-family: georgia, palatino; font-size: 14pt;"><strong>Conference / Work Sample Checklist:</strong></span></p>\n    <ol>`;
+                        let checkItems = checklistBlock.match(/Activity\s*Page\s*\d+\.\d+/gi);
+                        if (checkItems) {
+                            checkItems.forEach(ci => {
+                                htmlResult += `\n      <li><span style="font-family: georgia, palatino; font-size: 14pt;">${ci}</span></li>`;
+                            });
+                        }
+                        htmlResult += `\n    </ol>`;
+                    }
+                }
+
+                htmlResult += `\n  </div>\n  <div style="height: 20px;">&nbsp;</div>`;
+            }
+        });
+
+        htmlResult += `\n</div>`;
+
+        // Output structural compilation to browser interface
+        document.getElementById('htmlOutput').value = htmlResult;
+        document.getElementById('outputContainer').style.display = 'block';
+    }
+
+    function copyToClipboard() {
+        const copyText = document.getElementById('htmlOutput');
+        copyText.select();
+        copyText.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(copyText.value);
+        alert('Schoology HTML copied to clipboard successfully!');
+    }
+</script>
+
+</body>
+</html>
